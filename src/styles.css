@@ -1,0 +1,141 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-accent: var(--brand-accent);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.99 0.005 250);
+  --foreground: oklch(0.15 0.03 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.03 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.03 260);
+  --primary: oklch(0.35 0.15 260);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 250);
+  --secondary-foreground: oklch(0.2 0.05 260);
+  --muted: oklch(0.96 0.01 250);
+  --muted-foreground: oklch(0.5 0.02 260);
+  --accent: oklch(0.95 0.02 250);
+  --accent-foreground: oklch(0.2 0.05 260);
+  --destructive: oklch(0.58 0.24 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.92 0.01 250);
+  --ring: oklch(0.35 0.15 260);
+  --brand: oklch(0.35 0.15 260);            /* deep blue */
+  --brand-foreground: oklch(0.99 0 0);
+  --brand-accent: oklch(0.65 0.2 40);        /* orange */
+  --sidebar: oklch(0.98 0.005 250);
+  --sidebar-foreground: oklch(0.15 0.03 260);
+  --sidebar-primary: oklch(0.35 0.15 260);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.02 250);
+  --sidebar-accent-foreground: oklch(0.2 0.05 260);
+  --sidebar-border: oklch(0.9 0.01 250);
+  --sidebar-ring: oklch(0.35 0.15 260);
+}
+
+.dark {
+  --background: oklch(0.14 0.02 260);
+  --foreground: oklch(0.96 0.005 250);
+  --card: oklch(0.19 0.03 260);
+  --card-foreground: oklch(0.96 0.005 250);
+  --popover: oklch(0.19 0.03 260);
+  --popover-foreground: oklch(0.96 0.005 250);
+  --primary: oklch(0.7 0.18 250);
+  --primary-foreground: oklch(0.14 0.02 260);
+  --secondary: oklch(0.24 0.03 260);
+  --secondary-foreground: oklch(0.96 0.005 250);
+  --muted: oklch(0.22 0.02 260);
+  --muted-foreground: oklch(0.7 0.02 260);
+  --accent: oklch(0.26 0.04 260);
+  --accent-foreground: oklch(0.96 0.005 250);
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.28 0.02 260);
+  --input: oklch(0.28 0.02 260);
+  --ring: oklch(0.7 0.18 250);
+  --brand: oklch(0.7 0.18 250);
+  --brand-foreground: oklch(0.14 0.02 260);
+  --brand-accent: oklch(0.72 0.2 40);
+  --sidebar: oklch(0.17 0.03 260);
+  --sidebar-foreground: oklch(0.96 0.005 250);
+  --sidebar-primary: oklch(0.7 0.18 250);
+  --sidebar-primary-foreground: oklch(0.14 0.02 260);
+  --sidebar-accent: oklch(0.24 0.03 260);
+  --sidebar-accent-foreground: oklch(0.96 0.005 250);
+  --sidebar-border: oklch(0.28 0.02 260);
+  --sidebar-ring: oklch(0.7 0.18 250);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 { font-family: 'Manrope', 'Inter', system-ui, sans-serif; letter-spacing: -0.01em; }
+}
+
+/* Prose styles for rendered markdown */
+.prose-content { line-height: 1.75; color: var(--color-foreground); }
+.prose-content h1 { font-size: 2.25rem; font-weight: 800; margin: 2rem 0 1rem; }
+.prose-content h2 { font-size: 1.75rem; font-weight: 700; margin: 2rem 0 1rem; }
+.prose-content h3 { font-size: 1.35rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
+.prose-content h4 { font-size: 1.15rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
+.prose-content p { margin: 1rem 0; }
+.prose-content a { color: var(--color-brand); text-decoration: underline; text-underline-offset: 3px; }
+.prose-content ul { list-style: disc; padding-left: 1.5rem; margin: 1rem 0; }
+.prose-content ol { list-style: decimal; padding-left: 1.5rem; margin: 1rem 0; }
+.prose-content li { margin: 0.35rem 0; }
+.prose-content blockquote { border-left: 4px solid var(--color-brand-accent); padding: 0.5rem 1rem; margin: 1.25rem 0; color: var(--color-muted-foreground); background: var(--color-muted); border-radius: 0.375rem; }
+.prose-content code { background: var(--color-muted); padding: 0.15rem 0.35rem; border-radius: 0.25rem; font-size: 0.9em; }
+.prose-content pre { background: var(--color-muted); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1.25rem 0; }
+.prose-content pre code { background: transparent; padding: 0; }
+.prose-content img { max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1.25rem 0; }
+.prose-content table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; }
+.prose-content th, .prose-content td { border: 1px solid var(--color-border); padding: 0.5rem 0.75rem; text-align: left; }
+.prose-content th { background: var(--color-muted); font-weight: 600; }
+.prose-content hr { border: 0; border-top: 1px solid var(--color-border); margin: 2rem 0; }
