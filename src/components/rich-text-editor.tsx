@@ -1,9 +1,9 @@
-import { useEffect, useCallback } from "react";
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { useEffect, useCallback, useRef, useState } from "react";
+import { useEditor, EditorContent, NodeViewWrapper, ReactNodeViewRenderer, type Editor, type NodeViewProps } from "@tiptap/react";
+import { Node } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
-import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
@@ -27,6 +27,160 @@ import {
 
 const COLORS = ["#000000", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b", "#ffffff"];
 
+function normalizeImageWidth(width: unknown): string {
+  if (typeof width === "string" && width.trim()) return width.trim();
+  return "100%";
+}
+
+function getPercentValue(width: unknown): number {
+  if (typeof width !== "string") return 100;
+  const match = width.trim().match(/^(\d+(?:\.\d+)?)%$/);
+  if (!match) return 100;
+  return Math.min(100, Math.max(10, Number(match[1])));
+}
+
+const CustomImage = Node.create({
+  name: "image",
+  group: "block",
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: { default: null },
+      alt: { default: null },
+      title: { default: null },
+      width: { default: "100%" },
+      height: { default: null },
+      link: { default: null },
+    };
+  },
+  parseHTML() {
+    return [{
+      tag: "img[src]",
+      getAttrs: (element) => {
+        const src = element.getAttribute("src");
+        if (!src) return false;
+        const parent = element.parentElement;
+        const link = parent?.tagName === "A" ? parent.getAttribute("href") : null;
+        const widthFromStyle = element.getAttribute("style")?.match(/width:\s*([^;]+)/i)?.[1]?.trim();
+        const width = widthFromStyle || element.getAttribute("width") || "100%";
+        return {
+          src,
+          alt: element.getAttribute("alt"),
+          title: element.getAttribute("title"),
+          width,
+          link,
+        };
+      },
+    }];
+  },
+  renderHTML({ node }) {
+    const { src, alt, title, width, height, link } = node.attrs;
+    const widthValue = normalizeImageWidth(width);
+    const style = widthValue ? `width: ${widthValue}; max-width: 100%; height: auto;` : undefined;
+    const imageAttrs = { src, alt: alt ?? "", title: title ?? undefined, ...(style ? { style } : {}), ...(height ? { height } : {}) };
+
+    if (link) {
+      return ["a", { href: link, target: "_blank", rel: "noopener noreferrer" }, ["img", imageAttrs]];
+    }
+
+    return ["img", imageAttrs];
+  },
+  addCommands() {
+    return {
+      setImage: (attrs: Record<string, unknown>) => ({ commands }) => commands.insertContent({ type: this.name, attrs }),
+    };
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageNodeView);
+  },
+});
+
+function ImageNodeView(props: NodeViewProps) {
+  const { node, selected, updateAttributes, deleteNode } = props;
+  const [resizing, setResizing] = useState(false);
+  const startRef = useRef<{ x: number; widthPercent: number } | null>(null);
+  const width = normalizeImageWidth(node.attrs.width);
+  const widthPercent = getPercentValue(width);
+
+  const handleMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    startRef.current = { x: event.clientX, widthPercent };
+    setResizing(true);
+  }, [widthPercent]);
+
+  useEffect(() => {
+    if (!resizing) return;
+
+    const onMove = (event: MouseEvent) => {
+      if (!startRef.current) return;
+      const deltaPercent = ((event.clientX - startRef.current.x) / 320) * 100;
+      const nextPercent = Math.max(10, Math.min(100, startRef.current.widthPercent + deltaPercent));
+      updateAttributes({ width: `${Math.round(nextPercent)}%` });
+    };
+
+    const onUp = () => {
+      startRef.current = null;
+      setResizing(false);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [resizing, updateAttributes]);
+
+  return (
+    <NodeViewWrapper as="div" className={`my-5 flex justify-center ${selected ? "is-selected" : ""}`}>
+      <div className={`relative inline-flex max-w-full ${selected ? "rounded-xl ring-2 ring-brand" : ""}`} onClick={() => props.selectNode()}>
+        <button
+          type="button"
+          className="absolute bottom-2 right-2 z-10 rounded-full border border-border bg-background/90 p-1 shadow-sm"
+          title="Resize image"
+          onMouseDown={handleMouseDown}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 22L14 14M22 22V14M22 22H14" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <div className="block max-w-full" onClick={(event) => {
+          event.stopPropagation();
+          props.selectNode();
+        }}>
+          <img
+            src={node.attrs.src}
+            alt={node.attrs.alt ?? ""}
+            title={node.attrs.title ?? undefined}
+            className={`max-w-full h-auto rounded-lg border ${selected ? "border-brand" : "border-transparent"}`}
+            style={{ width, maxWidth: "100%" }}
+          />
+        </div>
+        {selected && (
+          <div className="absolute left-2 top-2 rounded bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm">
+            Image selected
+          </div>
+        )}
+      </div>
+      {selected && (
+        <div className="ml-2 flex flex-col gap-1">
+          <div className="rounded border bg-background p-2 text-xs">
+            <div className="mb-1 text-[11px] font-medium">Image width</div>
+            <input type="range" min="10" max="100" step="1" value={widthPercent} onChange={(event) => updateAttributes({ width: `${event.target.value}%` })} className="w-full accent-brand" />
+            <div className="mt-1 flex items-center gap-2">
+              <input type="number" min="10" max="100" step="1" value={widthPercent} onChange={(event) => updateAttributes({ width: `${event.target.value}%` })} className="w-14 rounded border px-1 py-0.5" />
+              <span>%</span>
+            </div>
+          </div>
+          <button type="button" className="rounded border bg-background px-2 py-1 text-xs" onClick={() => deleteNode()}>Remove</button>
+        </div>
+      )}
+    </NodeViewWrapper>
+  );
+}
+
 function Btn({ onClick, active, disabled, title, children }: { onClick: () => void; active?: boolean; disabled?: boolean; title: string; children: React.ReactNode }) {
   return (
     <Button
@@ -39,6 +193,21 @@ function Btn({ onClick, active, disabled, title, children }: { onClick: () => vo
 
 function Toolbar({ editor }: { editor: Editor }) {
   const insertLink = useCallback(() => {
+    const currentSelection = editor.state.selection as { node?: { type?: { name?: string }; attrs?: { link?: string | null } } };
+    const selectedImage = currentSelection.node?.type?.name === "image" ? currentSelection.node : null;
+
+    if (selectedImage) {
+      const prev = selectedImage.attrs?.link ?? "";
+      const url = window.prompt("URL", prev || "https://");
+      if (url === null) return;
+      if (url === "") {
+        editor.chain().focus().updateAttributes("image", { link: null }).run();
+        return;
+      }
+      editor.chain().focus().updateAttributes("image", { link: url }).run();
+      return;
+    }
+
     const prev = editor.getAttributes("link").href as string | undefined;
     const url = window.prompt("URL", prev ?? "https://");
     if (url === null) return;
@@ -105,7 +274,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         </div></PopoverContent>
       </Popover>
       {sep}
-      <Btn title="Link" active={editor.isActive("link")} onClick={insertLink}><LinkIcon className="h-4 w-4" /></Btn>
+      <Btn title="Link" active={editor.isActive("link") || editor.isActive("image")} onClick={insertLink}><LinkIcon className="h-4 w-4" /></Btn>
       <MediaPicker
         onSelect={(url) => editor.chain().focus().setImage({ src: url }).run()}
         trigger={<Button type="button" variant="ghost" size="sm" title="Image" className="h-8 w-8 p-0"><ImageIcon className="h-4 w-4" /></Button>}
@@ -124,7 +293,7 @@ export function RichTextEditor({ value, onChange, placeholder }: { value: string
       StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] } }),
       Underline,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: "noopener", target: "_blank" } }),
-      Image,
+      CustomImage,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       TextStyle,
       Color,
@@ -146,7 +315,7 @@ export function RichTextEditor({ value, onChange, placeholder }: { value: string
             try {
               const m = await uploadMedia(f);
               editor?.chain().focus().setImage({ src: m.url }).run();
-            } catch {/* ignore */}
+            } catch {/* ignore */ }
           }
         });
         return true;
