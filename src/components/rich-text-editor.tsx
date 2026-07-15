@@ -86,22 +86,24 @@ const CustomImage = Node.create({
 
     return ["img", imageAttrs];
   },
-  addCommands() {
-    return {
-      setImage: (attrs: Record<string, unknown>) => ({ commands }) => commands.insertContent({ type: this.name, attrs }),
-    };
-  },
   addNodeView() {
     return ReactNodeViewRenderer(ImageNodeView);
   },
 });
 
 function ImageNodeView(props: NodeViewProps) {
-  const { node, selected, updateAttributes, deleteNode } = props;
+  const { node, selected, updateAttributes, deleteNode, editor, getPos } = props;
   const [resizing, setResizing] = useState(false);
   const startRef = useRef<{ x: number; widthPercent: number } | null>(null);
   const width = normalizeImageWidth(node.attrs.width);
   const widthPercent = getPercentValue(width);
+
+  const selectNode = useCallback(() => {
+    const pos = getPos?.();
+    if (typeof pos === "number") {
+      editor.commands.setNodeSelection(pos);
+    }
+  }, [editor, getPos]);
 
   const handleMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -136,7 +138,7 @@ function ImageNodeView(props: NodeViewProps) {
 
   return (
     <NodeViewWrapper as="div" className={`my-5 flex justify-center ${selected ? "is-selected" : ""}`}>
-      <div className={`relative inline-flex max-w-full ${selected ? "rounded-xl ring-2 ring-brand" : ""}`} onClick={() => props.selectNode()}>
+      <div className={`relative inline-flex max-w-full ${selected ? "rounded-xl ring-2 ring-brand" : ""}`} onClick={selectNode}>
         <button
           type="button"
           className="absolute bottom-2 right-2 z-10 rounded-full border border-border bg-background/90 p-1 shadow-sm"
@@ -148,7 +150,7 @@ function ImageNodeView(props: NodeViewProps) {
         </button>
         <div className="block max-w-full" onClick={(event) => {
           event.stopPropagation();
-          props.selectNode();
+          selectNode();
         }}>
           <img
             src={node.attrs.src}
@@ -192,13 +194,24 @@ function Btn({ onClick, active, disabled, title, children }: { onClick: () => vo
 }
 
 function Toolbar({ editor }: { editor: Editor }) {
-  const insertLink = useCallback(() => {
+  const promptValue = useCallback((message: string, defaultValue = "") => {
+    return new Promise<string | null>((resolve) => {
+      const runPrompt = () => resolve(window.prompt(message, defaultValue));
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(runPrompt);
+      } else {
+        resolve(null);
+      }
+    });
+  }, []);
+
+  const insertLink = useCallback(async () => {
     const currentSelection = editor.state.selection as { node?: { type?: { name?: string }; attrs?: { link?: string | null } } };
     const selectedImage = currentSelection.node?.type?.name === "image" ? currentSelection.node : null;
 
     if (selectedImage) {
       const prev = selectedImage.attrs?.link ?? "";
-      const url = window.prompt("URL", prev || "https://");
+      const url = await promptValue("URL", prev || "https://");
       if (url === null) return;
       if (url === "") {
         editor.chain().focus().updateAttributes("image", { link: null }).run();
@@ -209,22 +222,22 @@ function Toolbar({ editor }: { editor: Editor }) {
     }
 
     const prev = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("URL", prev ?? "https://");
+    const url = await promptValue("URL", prev ?? "https://");
     if (url === null) return;
     if (url === "") { editor.chain().focus().extendMarkRange("link").unsetLink().run(); return; }
     editor.chain().focus().extendMarkRange("link").setLink({ href: url, target: "_blank" }).run();
-  }, [editor]);
+  }, [editor, promptValue]);
 
-  const insertButton = () => {
-    const label = window.prompt("Button label", "Click here"); if (!label) return;
-    const url = window.prompt("Button URL", "https://"); if (!url) return;
+  const insertButton = async () => {
+    const label = await promptValue("Button label", "Click here"); if (!label) return;
+    const url = await promptValue("Button URL", "https://"); if (!url) return;
     editor.chain().focus().insertContent(
       `<p><a href="${url}" target="_blank" rel="noopener" class="inline-block rounded-md bg-brand text-brand-foreground px-4 py-2 font-semibold no-underline">${label}</a></p>`
     ).run();
   };
 
-  const insertYT = () => {
-    const url = window.prompt("YouTube URL"); if (!url) return;
+  const insertYT = async () => {
+    const url = await promptValue("YouTube URL"); if (!url) return;
     editor.chain().focus().setYoutubeVideo({ src: url, width: 640, height: 360 }).run();
   };
 
@@ -274,14 +287,14 @@ function Toolbar({ editor }: { editor: Editor }) {
         </div></PopoverContent>
       </Popover>
       {sep}
-      <Btn title="Link" active={editor.isActive("link") || editor.isActive("image")} onClick={insertLink}><LinkIcon className="h-4 w-4" /></Btn>
+      <Btn title="Link" active={editor.isActive("link") || editor.isActive("image")} onClick={() => { void insertLink(); }}><LinkIcon className="h-4 w-4" /></Btn>
       <MediaPicker
-        onSelect={(url) => editor.chain().focus().setImage({ src: url }).run()}
+        onSelect={(url) => editor.chain().focus().insertContent({ type: "image", attrs: { src: url, width: "100%" } }).run()}
         trigger={<Button type="button" variant="ghost" size="sm" title="Image" className="h-8 w-8 p-0"><ImageIcon className="h-4 w-4" /></Button>}
       />
-      <Btn title="YouTube" onClick={insertYT}><YoutubeIcon className="h-4 w-4" /></Btn>
+      <Btn title="YouTube" onClick={() => { void insertYT(); }}><YoutubeIcon className="h-4 w-4" /></Btn>
       <Btn title="Table" onClick={insertTable}><TableIcon className="h-4 w-4" /></Btn>
-      <Btn title="Button" onClick={insertButton}><MousePointerClick className="h-4 w-4" /></Btn>
+      <Btn title="Button" onClick={() => { void insertButton(); }}><MousePointerClick className="h-4 w-4" /></Btn>
       <Btn title="Divider" onClick={() => editor.chain().focus().setHorizontalRule().run()}><Minus className="h-4 w-4" /></Btn>
     </div>
   );
@@ -314,7 +327,7 @@ export function RichTextEditor({ value, onChange, placeholder }: { value: string
           for (const f of files) {
             try {
               const m = await uploadMedia(f);
-              editor?.chain().focus().setImage({ src: m.url }).run();
+              editor?.chain().focus().insertContent({ type: "image", attrs: { src: m.url, width: "100%" } }).run();
             } catch {/* ignore */ }
           }
         });
